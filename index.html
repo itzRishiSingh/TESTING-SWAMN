@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swamn — AI-Powered Marine Plastic Cleanup</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ocean-deep: #03111f;
+    --ocean-mid: #061d30;
+    --ocean-surface: #0a2d45;
+    --teal-bright: #38d9c0;
+    --teal-dim: #1eb8a2;
+    --sky-blue: #7ecfee;
+    --foam: #e0f7f4;
+    --sand: #f0e6d3;
+    --white: #edf8f7;
+    --muted: #7fbacc;
+    --card-bg: rgba(6, 29, 48, 0.75);
+    --glass: rgba(56, 217, 192, 0.06);
+    --amber: #f5c87a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ocean-deep);
+    color: var(--white);
+    font-family: 'Outfit', sans-serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── CURSOR ── */
+  .cursor {
+    position: fixed; width: 10px; height: 10px;
+    background: var(--teal-bright); border-radius: 50%;
+    pointer-events: none; z-index: 9999;
+    transform: translate(-50%,-50%);
+    transition: width .3s, height .3s, background .3s;
+    mix-blend-mode: screen;
+  }
+  .cursor-ring {
+    position: fixed; width: 36px; height: 36px;
+    border: 1.5px solid rgba(56,217,192,.5);
+    border-radius: 50%; pointer-events: none; z-index: 9998;
+    transform: translate(-50%,-50%);
+    transition: width .3s, height .3s, opacity .3s;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; width: 100%; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.2rem 4rem;
+    transition: background .5s, backdrop-filter .5s;
+  }
+  nav.scrolled {
+    background: rgba(3,17,31,.88);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(56,217,192,.1);
+  }
+  .nav-logo {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 1.6rem; letter-spacing: -.03em;
+    color: var(--teal-bright); text-decoration: none;
+  }
+  .nav-logo span { color: var(--sky-blue); }
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+  .nav-links a {
+    font-family: 'DM Mono', monospace; font-size: .76rem;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); text-decoration: none;
+    transition: color .3s; cursor: none;
+  }
+  .nav-links a:hover { color: var(--teal-bright); }
+
+  /* Hamburger for mobile */
+  .nav-hamburger {
+    display: none; flex-direction: column; gap: 5px;
+    cursor: pointer; padding: 4px;
+  }
+  .nav-hamburger span {
+    display: block; width: 24px; height: 2px;
+    background: var(--teal-bright); border-radius: 2px;
+    transition: all .3s;
+  }
+
+  /* ── HERO ── */
+  #hero {
+    position: relative; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; text-align: center;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 90% 70% at 50% 90%, #0a3d5e 0%, #03111f 65%);
+  }
+
+  /* Gentle animated bokeh orbs */
+  .bokeh { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+  .bokeh-circle {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle, rgba(56,217,192,.18) 0%, transparent 70%);
+    animation: bokehFloat var(--d,14s) ease-in-out infinite;
+    animation-delay: var(--dl,0s);
+  }
+  @keyframes bokehFloat {
+    0%, 100% { transform: translate(0,0) scale(1); opacity: .6; }
+    33% { transform: translate(30px,-20px) scale(1.1); opacity: .9; }
+    66% { transform: translate(-20px,15px) scale(.9); opacity: .5; }
+  }
+
+  /* Calm wave bottom */
+  .waves-container {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 180px; z-index: 1; overflow: hidden;
+  }
+  .wave {
+    position: absolute; bottom: 0; left: -50%;
+    width: 200%; height: 100%;
+    border-radius: 43% 57% 40% 60% / 40% 40% 60% 60%;
+  }
+  .wave1 { background: rgba(56,217,192,.12); animation: waveGlide 10s ease-in-out infinite; }
+  .wave2 { background: rgba(126,207,238,.07); animation: waveGlide 15s ease-in-out infinite reverse; }
+  .wave3 { background: rgba(56,217,192,.06); animation: waveGlide 19s ease-in-out infinite; height:55%; bottom:25px; }
+  @keyframes waveGlide {
+    0%,100% { transform: translateX(0) rotate(0deg) translateY(0); }
+    50% { transform: translateX(2.5%) rotate(.8deg) translateY(-8px); }
+  }
+
+  /* Floating particles */
+  .particles { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+  .particle {
+    position: absolute; width: 3px; height: 3px;
+    border-radius: 50%; background: var(--teal-bright);
+    opacity: 0; animation: floatUp var(--dur) linear infinite;
+    animation-delay: var(--delay); left: var(--x); bottom: -10px;
+  }
+  @keyframes floatUp {
+    0% { opacity: 0; transform: translateY(0) scale(1); }
+    20% { opacity: .5; }
+    80% { opacity: .3; }
+    100% { opacity: 0; transform: translateY(-80vh) scale(.3); }
+  }
+
+  .hero-content { position: relative; z-index: 2; max-width: 900px; padding: 2rem; }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: .6rem;
+    font-family: 'DM Mono', monospace; font-size: .7rem;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: var(--teal-bright);
+    border: 1px solid rgba(56,217,192,.3);
+    padding: .4rem 1.2rem; border-radius: 2rem;
+    margin-bottom: 2rem;
+    animation: fadeSlideDown .8s ease both;
+  }
+  .hero-tag::before { content: '🌊'; font-size: .85rem; }
+  .hero-title {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(4rem, 12vw, 9rem);
+    line-height: .9; letter-spacing: -.04em;
+    color: var(--white); margin-bottom: .3em;
+    animation: fadeSlideDown .8s .15s ease both;
+  }
+  .hero-title .accent { color: var(--teal-bright); }
+  .hero-sub {
+    font-weight: 300; font-size: clamp(1rem, 2.5vw, 1.25rem);
+    color: var(--muted); max-width: 580px; margin: 1.5rem auto 3rem;
+    line-height: 1.75; animation: fadeSlideDown .8s .3s ease both;
+  }
+  .hero-sub em { color: var(--white); font-style: normal; }
+  .hero-cta {
+    display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+    animation: fadeSlideDown .8s .45s ease both;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: .6rem;
+    font-family: 'DM Mono', monospace; font-size: .76rem;
+    letter-spacing: .1em; text-transform: uppercase;
+    text-decoration: none; padding: .85rem 2rem;
+    border-radius: .5rem; transition: all .3s; cursor: none;
+  }
+  .btn-primary {
+    background: var(--teal-bright); color: var(--ocean-deep);
+    font-weight: 600; box-shadow: 0 0 30px rgba(56,217,192,.35);
+  }
+  .btn-primary:hover { background: #4de8cf; box-shadow: 0 0 50px rgba(56,217,192,.5); transform: translateY(-2px); }
+  .btn-secondary { border: 1px solid rgba(56,217,192,.35); color: var(--teal-bright); }
+  .btn-secondary:hover { background: rgba(56,217,192,.08); transform: translateY(-2px); }
+
+  /* ── OCEAN STATS (replaced "numbers that matter" with ocean crisis stats) ── */
+  .ocean-stats-strip {
+    position: relative; z-index: 2;
+    background: rgba(6,29,48,.85);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(56,217,192,.1);
+    border-bottom: 1px solid rgba(56,217,192,.1);
+    padding: 2.5rem 4rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+  .ostat-item { text-align: center; }
+  .ostat-number {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    font-weight: 800; color: var(--teal-bright);
+    display: block; line-height: 1;
+  }
+  .ostat-label {
+    font-family: 'DM Mono', monospace; font-size: .65rem;
+    color: var(--muted); letter-spacing: .1em;
+    text-transform: uppercase; margin-top: .5rem; display: block;
+  }
+
+  /* ── SECTIONS ── */
+  section { padding: 7rem 4rem; }
+  .section-tag {
+    font-family: 'DM Mono', monospace; font-size: .68rem;
+    letter-spacing: .2em; text-transform: uppercase;
+    color: var(--teal-bright);
+    display: inline-flex; align-items: center; gap: .5rem;
+    margin-bottom: 1.2rem;
+  }
+  .section-tag::before { content: ''; display: inline-block; width: 18px; height: 1px; background: var(--teal-bright); }
+  .section-title {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1.05; letter-spacing: -.03em;
+    color: var(--white); max-width: 700px; margin-bottom: 1.5rem;
+  }
+  .section-title .accent { color: var(--teal-bright); }
+  .section-body {
+    font-size: 1rem; color: var(--muted); line-height: 1.8; max-width: 580px;
+  }
+
+  /* ── PROBLEM ── */
+  #problem { background: var(--ocean-mid); }
+  .problem-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 5rem; align-items: center; max-width: 1200px; margin: 0 auto;
+  }
+  .ocean-circle {
+    width: 360px; height: 360px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #082d46, #03111f);
+    border: 1px solid rgba(56,217,192,.18);
+    position: relative; overflow: hidden; margin: auto;
+    box-shadow: 0 0 80px rgba(56,217,192,.1), inset 0 0 40px rgba(0,0,0,.4);
+    animation: orbPulse 5s ease-in-out infinite;
+  }
+  @keyframes orbPulse {
+    0%,100% { box-shadow: 0 0 80px rgba(56,217,192,.1); }
+    50% { box-shadow: 0 0 120px rgba(56,217,192,.22); }
+  }
+  .ocean-circle::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 26px,
+      rgba(56,217,192,.04) 26px, rgba(56,217,192,.04) 27px);
+  }
+  .ocean-circle .ocean-icon {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 5.5rem; line-height: 1;
+  }
+  .problem-facts { list-style: none; }
+  .problem-facts li {
+    display: flex; align-items: flex-start; gap: 1rem;
+    padding: 1.2rem 0; border-bottom: 1px solid rgba(56,217,192,.08);
+    font-size: .93rem; color: var(--muted); line-height: 1.65;
+  }
+  .problem-facts li:last-child { border-bottom: none; }
+  .fact-num {
+    font-family: 'Syne', sans-serif; font-size: 1.4rem;
+    font-weight: 800; color: var(--teal-bright);
+    min-width: 60px; line-height: 1;
+  }
+
+  /* ── CRISIS NUMBERS STRIP (replaced "Numbers that Matter" server section) ── */
+  .crisis-strip {
+    background: linear-gradient(135deg, rgba(56,217,192,.07) 0%, rgba(6,29,48,.9) 100%);
+    border-top: 1px solid rgba(56,217,192,.12);
+    border-bottom: 1px solid rgba(56,217,192,.12);
+    padding: 4rem;
+  }
+  .crisis-strip-inner { max-width: 1200px; margin: 0 auto; }
+  .crisis-header { text-align: center; margin-bottom: 3.5rem; }
+  .crisis-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+  .crisis-card {
+    background: var(--card-bg); border: 1px solid rgba(56,217,192,.1);
+    border-radius: 1.2rem; padding: 2.5rem 2rem; text-align: center;
+    backdrop-filter: blur(10px); transition: all .35s;
+    position: relative; overflow: hidden;
+  }
+  .crisis-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--teal-bright), transparent);
+    transform: scaleX(0); transition: transform .4s;
+  }
+  .crisis-card:hover { transform: translateY(-5px); border-color: rgba(56,217,192,.3); }
+  .crisis-card:hover::before { transform: scaleX(1); }
+  .crisis-icon { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
+  .crisis-num {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(2.2rem, 4vw, 3rem); color: var(--teal-bright);
+    line-height: 1; display: block; margin-bottom: .5rem;
+  }
+  .crisis-desc { font-size: .88rem; color: var(--muted); line-height: 1.65; }
+  .crisis-label {
+    font-family: 'DM Mono', monospace; font-size: .65rem;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--sky-blue); margin-bottom: .4rem; display: block;
+  }
+
+  /* ── TECHNOLOGY ── */
+  #technology { position: relative; overflow: hidden; }
+  #technology::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 40% at 80% 50%, rgba(56,217,192,.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .tech-container { max-width: 1200px; margin: 0 auto; }
+  .tech-header { margin-bottom: 4rem; }
+  .tech-layers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.8rem; }
+  .layer-card {
+    background: var(--card-bg); border: 1px solid rgba(56,217,192,.1);
+    border-radius: 1rem; padding: 2.5rem; position: relative;
+    overflow: hidden; transition: all .4s; backdrop-filter: blur(10px);
+  }
+  .layer-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--teal-bright), transparent);
+    transform: scaleX(0); transition: transform .4s;
+  }
+  .layer-card:hover { border-color: rgba(56,217,192,.35); transform: translateY(-5px); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+  .layer-card:hover::before { transform: scaleX(1); }
+  .card-icon { font-size: 2.4rem; margin-bottom: 1.5rem; display: block; }
+  .card-title { font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--white); margin-bottom: .7rem; }
+  .card-body { font-size: .88rem; color: var(--muted); line-height: 1.7; }
+  .card-specs { margin-top: 1.5rem; display: flex; flex-direction: column; gap: .4rem; }
+  .spec-row {
+    display: flex; justify-content: space-between;
+    font-family: 'DM Mono', monospace; font-size: .7rem;
+    padding: .35rem 0; border-top: 1px solid rgba(255,255,255,.05);
+  }
+  .spec-key { color: var(--muted); }
+  .spec-val { color: var(--teal-bright); }
+
+  /* ── AI PIPELINE ── */
+  #ai-pipeline { background: var(--ocean-mid); }
+  .pipeline-container { max-width: 1000px; margin: 0 auto; }
+  .pipeline-flow { display: flex; align-items: stretch; gap: 0; margin-top: 4rem; }
+  .pipeline-step { flex: 1; text-align: center; padding: 2rem 1rem; position: relative; }
+  .pipeline-step::after {
+    content: '→'; position: absolute; right: -.8rem; top: 50%;
+    transform: translateY(-50%); color: var(--teal-bright); font-size: 1.4rem; z-index: 2;
+  }
+  .pipeline-step:last-child::after { display: none; }
+  .step-icon-wrap {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: var(--glass); border: 1px solid rgba(56,217,192,.22);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.1rem; font-size: 1.7rem;
+    transition: all .3s;
+  }
+  .pipeline-step:hover .step-icon-wrap { background: rgba(56,217,192,.12); }
+  .step-title { font-family: 'Syne', sans-serif; font-size: .82rem; font-weight: 700; color: var(--white); margin-bottom: .4rem; }
+  .step-desc { font-size: .76rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── RESULTS ── */
+  #results { position: relative; overflow: hidden; }
+  .results-grid {
+    max-width: 1200px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1.5fr;
+    gap: 5rem; align-items: start;
+  }
+  .accuracy-display { display: flex; flex-direction: column; align-items: center; }
+  .big-number {
+    font-family: 'Syne', sans-serif; font-size: clamp(5rem, 12vw, 8.5rem);
+    font-weight: 800; color: var(--teal-bright); line-height: 1;
+    text-shadow: 0 0 60px rgba(56,217,192,.4);
+  }
+  .big-number-label {
+    font-family: 'DM Mono', monospace; font-size: .7rem;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: var(--muted); text-align: center; margin-top: .8rem;
+  }
+  .result-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  .result-card {
+    background: var(--card-bg); border: 1px solid rgba(56,217,192,.1);
+    border-radius: .8rem; padding: 1.8rem; backdrop-filter: blur(10px); transition: all .3s;
+  }
+  .result-card:hover { border-color: rgba(56,217,192,.3); transform: translateY(-3px); }
+  .result-metric { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; color: var(--teal-bright); margin-bottom: .4rem; }
+  .result-metric-label { font-size: .8rem; color: var(--white); font-weight: 500; margin-bottom: .25rem; }
+  .result-metric-sub { font-size: .73rem; color: var(--muted); }
+
+  /* Detection table */
+  .detection-table { width: 100%; border-collapse: collapse; margin-top: 2.5rem; font-size: .83rem; }
+  .detection-table th {
+    font-family: 'DM Mono', monospace; font-size: .63rem;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); padding: .75rem 1rem; text-align: left;
+    border-bottom: 1px solid rgba(56,217,192,.15);
+  }
+  .detection-table td {
+    padding: .85rem 1rem; border-bottom: 1px solid rgba(255,255,255,.04);
+    color: var(--muted);
+  }
+  .detection-table td:first-child { color: var(--white); }
+  .detection-table tr:hover td { background: rgba(56,217,192,.03); }
+  .accuracy-bar { display: flex; align-items: center; gap: .75rem; }
+  .bar-track { flex: 1; height: 4px; background: rgba(255,255,255,.07); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--teal-dim), var(--teal-bright)); border-radius: 2px; transition: width 1.5s ease; }
+  .bar-pct { font-family: 'DM Mono', monospace; font-size: .72rem; color: var(--teal-bright); min-width: 40px; text-align: right; }
+
+  /* ── HARDWARE ── */
+  #hardware { background: var(--ocean-mid); }
+  .hardware-container { max-width: 1200px; margin: 0 auto; }
+  .hardware-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.4rem; margin-top: 3.5rem; }
+  .hw-card {
+    background: rgba(3,17,31,.65); border: 1px solid rgba(56,217,192,.1);
+    border-radius: .8rem; padding: 1.6rem; transition: all .3s;
+  }
+  .hw-card:hover { border-color: rgba(56,217,192,.3); transform: translateY(-4px); box-shadow: 0 14px 40px rgba(0,0,0,.35); }
+  .hw-category {
+    font-family: 'DM Mono', monospace; font-size: .6rem;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--teal-bright); margin-bottom: 1.1rem;
+    padding-bottom: .7rem; border-bottom: 1px solid rgba(56,217,192,.1);
+  }
+  .hw-item { display: flex; justify-content: space-between; align-items: center; padding: .45rem 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .hw-item:last-child { border-bottom: none; }
+  .hw-name { font-size: .83rem; color: var(--white); }
+  .hw-spec { font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--muted); text-align: right; max-width: 120px; }
+
+  /* ── NAVIGATION & INTELLIGENCE (NEW SECTION) ── */
+  #nav-intelligence { position: relative; overflow: hidden; }
+  #nav-intelligence::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 50% 50% at 30% 60%, rgba(126,207,238,.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .nav-intel-container { max-width: 1200px; margin: 0 auto; }
+  .nav-intel-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2rem; margin-top: 3.5rem;
+  }
+  .intel-card {
+    background: var(--card-bg); border: 1px solid rgba(56,217,192,.1);
+    border-radius: 1.2rem; padding: 2.5rem; backdrop-filter: blur(10px); transition: all .35s;
+  }
+  .intel-card:hover { border-color: rgba(56,217,192,.3); transform: translateY(-4px); }
+  .intel-card-head {
+    display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .intel-icon {
+    width: 50px; height: 50px; border-radius: .75rem;
+    background: rgba(56,217,192,.1); border: 1px solid rgba(56,217,192,.2);
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+  .intel-card-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--white); }
+  .intel-card-sub { font-size: .75rem; color: var(--teal-bright); font-family: 'DM Mono', monospace; letter-spacing: .1em; margin-top: .2rem; }
+  .intel-list { list-style: none; display: flex; flex-direction: column; gap: .7rem; }
+  .intel-list li {
+    display: flex; align-items: flex-start; gap: .75rem;
+    font-size: .88rem; color: var(--muted); line-height: 1.55;
+  }
+  .intel-list li::before { content: '◈'; color: var(--teal-bright); font-size: .7rem; margin-top: .2rem; flex-shrink: 0; }
+
+  /* ── SWAMN INTELLIGENCE (NEW BIG SECTION) ── */
+  #swamn-intelligence { background: var(--ocean-mid); }
+  .swarm-container { max-width: 1200px; margin: 0 auto; }
+  .swarm-visual {
+    display: flex; justify-content: center; margin: 3rem 0;
+    position: relative;
+  }
+  .swarm-bots {
+    position: relative; width: 320px; height: 220px;
+  }
+  .sbot {
+    position: absolute; width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--teal-bright), var(--ocean-surface));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; box-shadow: 0 0 20px rgba(56,217,192,.35);
+    animation: botPulse 3s ease-in-out infinite;
+  }
+  .sbot:nth-child(1) { top: 0; left: 50%; transform: translateX(-50%); animation-delay: 0s; }
+  .sbot:nth-child(2) { bottom: 0; left: 0; animation-delay: .6s; }
+  .sbot:nth-child(3) { bottom: 0; right: 0; animation-delay: 1.2s; }
+  .sbot:nth-child(4) { top: 50%; left: 50%; transform: translate(-50%,-50%); background: linear-gradient(135deg, var(--sky-blue), var(--teal-dim)); animation-delay: 1.8s; }
+  @keyframes botPulse {
+    0%,100% { box-shadow: 0 0 20px rgba(56,217,192,.35); }
+    50% { box-shadow: 0 0 40px rgba(56,217,192,.7); }
+  }
+  .swarm-line {
+    position: absolute; background: rgba(56,217,192,.2);
+    height: 1px; transform-origin: left center;
+  }
+  .swarm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.8rem; margin-top: 3.5rem; }
+  .swarm-card {
+    background: rgba(3,17,31,.6); border: 1px solid rgba(56,217,192,.08);
+    border-radius: 1rem; padding: 2rem; transition: all .35s;
+    position: relative; overflow: hidden;
+  }
+  .swarm-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 0; background: var(--teal-bright);
+    transition: height .4s;
+  }
+  .swarm-card:hover { border-color: rgba(56,217,192,.25); }
+  .swarm-card:hover::before { height: 100%; }
+  .swarm-num {
+    font-family: 'Syne', sans-serif; font-size: 2.5rem;
+    font-weight: 800; color: rgba(56,217,192,.12);
+    line-height: 1; margin-bottom: .8rem; display: block;
+  }
+  .swarm-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: .6rem; }
+  .swarm-desc { font-size: .85rem; color: var(--muted); line-height: 1.6; }
+
+  /* ── EDGE AI (NEW SECTION) ── */
+  #edge-ai { position: relative; overflow: hidden; }
+  .edge-container { max-width: 1200px; margin: 0 auto; }
+  .edge-grid {
+    display: grid; grid-template-columns: 1.1fr 1fr;
+    gap: 5rem; align-items: center; margin-top: 4rem;
+  }
+  .edge-modules { display: flex; flex-direction: column; gap: 1.2rem; }
+  .edge-module {
+    background: var(--card-bg); border: 1px solid rgba(56,217,192,.1);
+    border-radius: 1rem; padding: 1.8rem 2rem;
+    display: flex; align-items: center; gap: 1.5rem;
+    backdrop-filter: blur(10px); transition: all .3s;
+  }
+  .edge-module:hover { border-color: rgba(56,217,192,.3); transform: translateX(6px); }
+  .edge-module-icon {
+    font-size: 2rem; width: 52px; height: 52px; flex-shrink: 0;
+    background: rgba(56,217,192,.08); border-radius: .75rem;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(56,217,192,.15);
+  }
+  .edge-module-info .edge-module-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: .3rem; }
+  .edge-module-info .edge-module-desc { font-size: .83rem; color: var(--muted); line-height: 1.55; }
+  .edge-highlight {
+    background: linear-gradient(135deg, rgba(56,217,192,.08), rgba(56,217,192,.02));
+    border: 1px solid rgba(56,217,192,.2); border-radius: 1.5rem; padding: 3rem;
+  }
+  .edge-highlight h3 { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--white); margin-bottom: 1rem; }
+  .edge-highlight p { font-size: .93rem; color: var(--muted); line-height: 1.75; margin-bottom: 1.5rem; }
+  .edge-tags { display: flex; flex-wrap: wrap; gap: .7rem; }
+  .edge-tag {
+    background: rgba(56,217,192,.07); border: 1px solid rgba(56,217,192,.18);
+    border-radius: 2rem; padding: .35rem 1rem;
+    font-family: 'DM Mono', monospace; font-size: .68rem;
+    letter-spacing: .1em; color: var(--teal-bright); text-transform: uppercase;
+  }
+
+  /* ── IMPACT ── */
+  #impact { position: relative; overflow: hidden; }
+  #impact::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 50% 60% at 20% 50%, rgba(56,217,192,.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .impact-container { max-width: 1200px; margin: 0 auto; }
+  .impact-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 5rem; align-items: center; margin-top: 4rem; }
+  .impact-calc {
+    background: var(--card-bg); border: 1px solid rgba(56,217,192,.15);
+    border-radius: 1.2rem; padding: 3rem;
+    font-family: 'DM Mono', monospace; backdrop-filter: blur(10px);
+  }
+  .calc-title { font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; color: var(--teal-bright); margin-bottom: 2rem; }
+  .calc-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .75rem 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: .8rem;
+  }
+  .calc-label { color: var(--muted); }
+  .calc-value { color: var(--white); }
+  .calc-total { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 0 0; }
+  .calc-total .calc-label { color: var(--white); font-size: .8rem; }
+  .calc-total .calc-value { color: var(--teal-bright); font-size: 1.8rem; font-weight: 700; }
+  .sdg-badges { display: flex; flex-direction: column; gap: 1.4rem; }
+  .sdg-badge {
+    display: flex; align-items: center; gap: 1.4rem;
+    background: var(--card-bg); border: 1px solid rgba(56,217,192,.1);
+    border-radius: 1rem; padding: 1.4rem 1.8rem; transition: all .3s;
+  }
+  .sdg-badge:hover { border-color: rgba(56,217,192,.3); transform: translateX(6px); }
+  .sdg-num { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; color: var(--teal-bright); min-width: 48px; }
+  .sdg-info strong { display: block; font-size: .88rem; color: var(--white); margin-bottom: .25rem; }
+  .sdg-info span { font-size: .78rem; color: var(--muted); }
+
+  /* ── TEAM ── */
+  #team { background: var(--ocean-mid); }
+  .team-container { max-width: 900px; margin: 0 auto; text-align: center; }
+  .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; margin-top: 4rem; }
+  .team-card {
+    background: rgba(3,17,31,.75); border: 1px solid rgba(56,217,192,.1);
+    border-radius: 1.2rem; padding: 3rem 2.5rem; text-align: left;
+    position: relative; overflow: hidden; transition: all .4s;
+  }
+  .team-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--teal-bright), transparent);
+    transform: scaleX(0); transition: transform .4s;
+  }
+  .team-card:hover { border-color: rgba(56,217,192,.3); transform: translateY(-5px); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  .team-card:hover::after { transform: scaleX(1); }
+  .team-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--teal-bright), var(--ocean-surface));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem;
+    color: var(--ocean-deep); margin-bottom: 1.5rem;
+    box-shadow: 0 0 20px rgba(56,217,192,.3);
+  }
+  .team-name { font-family: 'Syne', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--white); margin-bottom: .25rem; }
+  .team-role {
+    font-family: 'DM Mono', monospace; font-size: .66rem;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--teal-bright); margin-bottom: 1.2rem; display: block;
+  }
+  .team-bio { font-size: .87rem; color: var(--muted); line-height: 1.7; }
+  .team-achievements { margin-top: 1.5rem; display: flex; flex-direction: column; gap: .5rem; }
+  .achievement {
+    display: flex; align-items: center; gap: .6rem;
+    font-size: .78rem; color: var(--muted);
+  }
+  .achievement::before { content: '→'; color: var(--teal-bright); font-size: .85rem; }
+  .school-banner {
+    max-width: 1200px; margin: 5rem auto 0;
+    background: linear-gradient(135deg, rgba(56,217,192,.06), rgba(56,217,192,.01));
+    border: 1px solid rgba(56,217,192,.15);
+    border-radius: 1.2rem; padding: 2.5rem 3.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 2rem; flex-wrap: wrap;
+  }
+  .school-name { font-family: 'Syne', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--white); }
+  .school-sub {
+    font-family: 'DM Mono', monospace; font-size: .68rem;
+    letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin-top: .25rem;
+  }
+  .school-badges { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .school-badge {
+    background: rgba(56,217,192,.08); border: 1px solid rgba(56,217,192,.2);
+    border-radius: 2rem; padding: .45rem 1rem;
+    font-family: 'DM Mono', monospace; font-size: .68rem;
+    letter-spacing: .1em; color: var(--teal-bright); text-transform: uppercase;
+  }
+
+  /* ── ROADMAP ── */
+  #future { }
+  .future-container { max-width: 1100px; margin: 0 auto; }
+  .future-items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.8rem; margin-top: 4rem; }
+  .future-item {
+    padding: 2.5rem; border: 1px solid rgba(56,217,192,.08);
+    border-radius: 1rem; position: relative; overflow: hidden; transition: all .3s;
+  }
+  .future-item::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 0; background: var(--teal-bright); transition: height .4s;
+  }
+  .future-item:hover { border-color: rgba(56,217,192,.25); }
+  .future-item:hover::before { height: 100%; }
+  .future-num { font-family: 'Syne', sans-serif; font-size: 2.8rem; font-weight: 800; color: rgba(56,217,192,.1); line-height: 1; margin-bottom: .9rem; display: block; }
+  .future-title { font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--white); margin-bottom: .7rem; }
+  .future-desc { font-size: .86rem; color: var(--muted); line-height: 1.62; }
+
+  /* ── FOOTER ── */
+  footer {
+    background: #020c16; border-top: 1px solid rgba(56,217,192,.08);
+    padding: 4rem; text-align: center;
+  }
+  .footer-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.4rem; color: var(--teal-bright); letter-spacing: -.04em; margin-bottom: .8rem; }
+  .footer-tagline {
+    font-family: 'DM Mono', monospace; font-size: .7rem;
+    letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-bottom: 2.5rem;
+  }
+  .footer-divider { width: 60px; height: 1px; background: rgba(56,217,192,.18); margin: 2rem auto; }
+  .footer-meta { font-size: .78rem; color: rgba(127,186,204,.35); margin-top: 2rem; }
+  .sdg-line { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .sdg-chip {
+    background: rgba(56,217,192,.06); border: 1px solid rgba(56,217,192,.14);
+    border-radius: 2rem; padding: .35rem 1rem;
+    font-family: 'DM Mono', monospace; font-size: .63rem;
+    letter-spacing: .12em; color: var(--teal-bright); text-transform: uppercase;
+  }
+
+  /* ── UTILITIES ── */
+  .reveal {
+    opacity: 0; transform: translateY(28px);
+    transition: opacity .8s ease, transform .8s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--ocean-deep); }
+  ::-webkit-scrollbar-thumb { background: rgba(56,217,192,.25); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(56,217,192,.45); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    nav { padding: 1.1rem 1.4rem; }
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    .mobile-nav-open .nav-links {
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(3,17,31,.97); backdrop-filter: blur(20px);
+      align-items: center; justify-content: center; gap: 2.5rem;
+      z-index: 99;
+    }
+    .mobile-nav-open .nav-links a { font-size: 1.1rem; }
+    section { padding: 4.5rem 1.4rem; }
+    .ocean-stats-strip { grid-template-columns: repeat(2,1fr); padding: 1.8rem 1.4rem; }
+    .problem-grid, .results-grid, .impact-grid, .edge-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+    .tech-layers, .future-items, .crisis-grid, .swarm-grid { grid-template-columns: 1fr; }
+    .nav-intel-grid { grid-template-columns: 1fr; }
+    .team-grid { grid-template-columns: 1fr; }
+    .pipeline-flow { flex-direction: column; }
+    .pipeline-step::after { content: '↓'; right: 50%; bottom: -1rem; top: auto; transform: translateX(50%); }
+    .school-banner { padding: 1.8rem; }
+    footer { padding: 2.5rem 1.4rem; }
+    body { cursor: auto; }
+    .cursor, .cursor-ring { display: none; }
+    .ocean-circle { width: 260px; height: 260px; }
+    .hero-title { font-size: clamp(3.2rem, 18vw, 5.5rem); }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- NAV -->
+<nav id="navbar">
+  <a href="#hero" class="nav-logo">Swamn<span>.</span></a>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#technology">Tech</a></li>
+    <li><a href="#nav-intelligence">Navigation</a></li>
+    <li><a href="#swamn-intelligence">Intelligence</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#impact">Impact</a></li>
+    <li><a href="#team">Team</a></li>
+  </ul>
+  <div class="nav-hamburger" id="hamburger" onclick="toggleNav()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg"></div>
+  <div class="bokeh" id="bokeh"></div>
+  <div class="particles" id="particles"></div>
+
+  <div class="hero-content">
+    <div class="hero-tag">AI-Powered Marine Cleanup · Autonomous Robotics</div>
+    <h1 class="hero-title">Sw<span class="accent">a</span>mn</h1>
+    <p class="hero-sub">
+      An <em>intelligent autonomous robotic system</em> that detects and collects
+      floating marine debris — preserving our oceans, one wave at a time.
+    </p>
+    <div class="hero-cta">
+      <a href="#results" class="btn btn-primary">View Results ↓</a>
+      <a href="#technology" class="btn btn-secondary">How It Works</a>
+    </div>
+  </div>
+
+  <div class="waves-container">
+    <div class="wave wave1"></div>
+    <div class="wave wave2"></div>
+    <div class="wave wave3"></div>
+  </div>
+</section>
+
+<!-- OCEAN CRISIS STATS STRIP -->
+<div class="ocean-stats-strip">
+  <div class="ostat-item reveal">
+    <span class="ostat-number">14M</span>
+    <span class="ostat-label">Tonnes of Plastic Enter Oceans / Year</span>
+  </div>
+  <div class="ostat-item reveal">
+    <span class="ostat-number">1M+</span>
+    <span class="ostat-label">Seabirds Killed by Plastic Annually</span>
+  </div>
+  <div class="ostat-item reveal">
+    <span class="ostat-number">700+</span>
+    <span class="ostat-label">Marine Species Affected</span>
+  </div>
+  <div class="ostat-item reveal">
+    <span class="ostat-number">2040</span>
+    <span class="ostat-label">Triple Ocean Plastic Without Action</span>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="problem-grid">
+    <div class="problem-visual reveal">
+      <div class="ocean-circle">
+        <span class="ocean-icon">🌊</span>
+      </div>
+    </div>
+    <div class="reveal">
+      <div class="section-tag">The Crisis</div>
+      <h2 class="section-title">Oceans drowning in <span class="accent">plastic</span></h2>
+      <ul class="problem-facts">
+        <li>
+          <span class="fact-num">14M</span>
+          <span>Metric tonnes of plastic enter our oceans every single year, threatening marine life and human food security across the globe.</span>
+        </li>
+        <li>
+          <span class="fact-num">1.8T</span>
+          <span>Plastic pieces float in the Great Pacific Garbage Patch alone — 100,000 metric tonnes — with dozens of such patches worldwide.</span>
+        </li>
+        <li>
+          <span class="fact-num">700+</span>
+          <span>Marine species including fish, seabirds, dolphins and turtles are directly harmed by plastic pollution every year.</span>
+        </li>
+        <li>
+          <span class="fact-num">2040</span>
+          <span>Without urgent intervention, annual ocean plastic input could reach 23–37 million metric tonnes per year, a near-tripling of today's crisis.</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- OCEAN WASTE NUMBERS (REPLACED "Numbers that Matter" / servers section) -->
+<div class="crisis-strip">
+  <div class="crisis-strip-inner">
+    <div class="crisis-header reveal">
+      <div class="section-tag" style="justify-content:center;">The Scale of the Problem</div>
+      <h2 class="section-title" style="text-align:center; margin:0 auto 1rem;">The ocean <span class="accent">can't wait</span></h2>
+      <p class="section-body" style="text-align:center; margin:0 auto;">Every minute, the equivalent of a garbage truck of plastic is dumped into our oceans. Here's the true cost.</p>
+    </div>
+    <div class="crisis-grid">
+      <div class="crisis-card reveal">
+        <span class="crisis-icon">🐠</span>
+        <span class="crisis-label">Marine Life</span>
+        <span class="crisis-num">700+</span>
+        <div class="crisis-desc">Marine species are directly affected by plastic — from sea turtles ingesting bags to dolphins entangled in nets.</div>
+      </div>
+      <div class="crisis-card reveal">
+        <span class="crisis-icon">🐦</span>
+        <span class="crisis-label">Seabirds</span>
+        <span class="crisis-num">1M+</span>
+        <div class="crisis-desc">Seabirds die each year after ingesting plastic fragments, mistaking them for food. Chicks are fed plastic pieces by unknowing parents.</div>
+      </div>
+      <div class="crisis-card reveal">
+        <span class="crisis-icon">🐢</span>
+        <span class="crisis-label">Sea Turtles</span>
+        <span class="crisis-num">100%</span>
+        <div class="crisis-desc">All 7 sea turtle species are affected by plastic pollution — entanglement and ingestion are leading causes of their decline.</div>
+      </div>
+      <div class="crisis-card reveal">
+        <span class="crisis-icon">🌊</span>
+        <span class="crisis-label">Ocean Surface</span>
+        <span class="crisis-num">5.25T</span>
+        <div class="crisis-desc">Plastic pieces estimated floating in our oceans today. Surface plastics are the most critical — reachable by robots like Swamn.</div>
+      </div>
+      <div class="crisis-card reveal">
+        <span class="crisis-icon">🏖️</span>
+        <span class="crisis-label">Coastlines</span>
+        <span class="crisis-num">620K km</span>
+        <div class="crisis-desc">Of global coastline are contaminated with plastic debris — impacting coastal communities, tourism, and shoreline ecosystems.</div>
+      </div>
+      <div class="crisis-card reveal">
+        <span class="crisis-icon">🔬</span>
+        <span class="crisis-label">Microplastics</span>
+        <span class="crisis-num">24T</span>
+        <div class="crisis-desc">Microplastic particles now found in the deep ocean. They enter the food chain — from plankton to fish, to our dinner plates.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TECHNOLOGY -->
+<section id="technology">
+  <div class="tech-container">
+    <div class="tech-header reveal">
+      <div class="section-tag">System Architecture</div>
+      <h2 class="section-title">Three layers of <span class="accent">intelligence</span></h2>
+      <p class="section-body">Swamn operates as a layered autonomous system, combining edge computing, AI inference, and motor control for continuous marine cleanup.</p>
+    </div>
+    <div class="tech-layers">
+      <div class="layer-card reveal">
+        <span class="card-icon">👁️</span>
+        <div class="card-title">Perception Layer</div>
+        <div class="card-body">Pi Camera Module v2 streams live frames to a ResNet18 + KNN inference pipeline. Each frame is classified as GARBAGE or CLEAR every ~500ms, triggering immediate motor decisions.</div>
+        <div class="card-specs">
+          <div class="spec-row"><span class="spec-key">Model</span><span class="spec-val">ResNet18 + KNN</span></div>
+          <div class="spec-row"><span class="spec-key">Camera</span><span class="spec-val">8MP · 1080p@30fps</span></div>
+          <div class="spec-row"><span class="spec-key">Inference Rate</span><span class="spec-val">~2 Hz</span></div>
+        </div>
+      </div>
+      <div class="layer-card reveal">
+        <span class="card-icon">🧠</span>
+        <div class="card-title">Control Layer</div>
+        <div class="card-body">Raspberry Pi 5 acts as the central brain, processing AI decisions and sending commands to motor controllers and the belt-net collection mechanism in real time.</div>
+        <div class="card-specs">
+          <div class="spec-row"><span class="spec-key">Compute</span><span class="spec-val">RPi 5 · 4GB RAM</span></div>
+          <div class="spec-row"><span class="spec-key">Motor MCU</span><span class="spec-val">ESP32 WROOM-32</span></div>
+          <div class="spec-row"><span class="spec-key">GPS MCU</span><span class="spec-val">ESP8266 @ 1Hz</span></div>
+        </div>
+      </div>
+      <div class="layer-card reveal">
+        <span class="card-icon">⚡</span>
+        <div class="card-title">Power Layer</div>
+        <div class="card-body">A 12V SLA battery powers all systems. When voltage drops below 11.5V, Swamn autonomously returns to its solar docking station to recharge — fully off-grid.</div>
+        <div class="card-specs">
+          <div class="spec-row"><span class="spec-key">Battery</span><span class="spec-val">12V 7Ah SLA</span></div>
+          <div class="spec-row"><span class="spec-key">Solar Panel</span><span class="spec-val">10W Monocrystalline</span></div>
+          <div class="spec-row"><span class="spec-key">Runtime</span><span class="spec-val">5.5 Hours</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AI PIPELINE -->
+<section id="ai-pipeline">
+  <div class="pipeline-container">
+    <div class="reveal" style="text-align:center; margin-bottom:1rem;">
+      <div class="section-tag" style="justify-content:center;">AI Pipeline</div>
+      <h2 class="section-title" style="margin:0 auto; text-align:center;">From pixel to <span class="accent">action</span></h2>
+    </div>
+    <div class="pipeline-flow reveal">
+      <div class="pipeline-step">
+        <div class="step-icon-wrap">📸</div>
+        <div class="step-title">Capture</div>
+        <div class="step-desc">Pi Camera streams 1080p frames at 30fps to Raspberry Pi 5</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-icon-wrap">🔄</div>
+        <div class="step-title">Preprocess</div>
+        <div class="step-desc">Frames resized, cropped & normalized for inference</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-icon-wrap">🤖</div>
+        <div class="step-title">Classify</div>
+        <div class="step-desc">ResNet18 extracts features; KNN classifies as GARBAGE or CLEAR</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-icon-wrap">🧭</div>
+        <div class="step-title">Navigate</div>
+        <div class="step-desc">Pi 5 sends motor commands — approach, scan, or return to dock</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-icon-wrap">🪣</div>
+        <div class="step-title">Collect</div>
+        <div class="step-desc">Belt-net conveyor scoops debris in ~11.4 seconds average</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NAVIGATION & INTELLIGENCE (NEW) -->
+<section id="nav-intelligence">
+  <div class="nav-intel-container">
+    <div class="tech-header reveal">
+      <div class="section-tag">Upgrades</div>
+      <h2 class="section-title">Navigation & <span class="accent">Intelligence</span></h2>
+      <p class="section-body">Beyond the prototype — next-generation upgrades that transform Swamn from a smart bot into a truly autonomous marine guardian.</p>
+    </div>
+    <div class="nav-intel-grid">
+      <div class="intel-card reveal">
+        <div class="intel-card-head">
+          <div class="intel-icon">🛰️</div>
+          <div>
+            <div class="intel-card-title">Smart Path Planning</div>
+            <div class="intel-card-sub">A. Navigation Upgrade</div>
+          </div>
+        </div>
+        <ul class="intel-list">
+          <li>Grid-based systematic cleaning — no random movement, full area coverage guaranteed</li>
+          <li>GPS mapping with waypoint tracking to log cleaned zones and avoid repetition</li>
+          <li>Dynamic obstacle avoidance using real-time sensor fusion</li>
+          <li>Return-to-base path optimization based on battery remaining</li>
+        </ul>
+      </div>
+      <div class="intel-card reveal">
+        <div class="intel-card-head">
+          <div class="intel-icon">⚖️</div>
+          <div>
+            <div class="intel-card-title">Wave Stabilization System</div>
+            <div class="intel-card-sub">B. Stability Upgrade</div>
+          </div>
+        </div>
+        <ul class="intel-list">
+          <li>Gyroscope integration (MPU6050 or better) for real-time orientation sensing</li>
+          <li>Dynamic motor balancing — compensates for wave-induced tilt automatically</li>
+          <li>Maintains stable camera frame for accurate detection even in choppy water</li>
+          <li>Enables open-water deployment beyond controlled tank environments</li>
+        </ul>
+      </div>
+      <div class="intel-card reveal">
+        <div class="intel-card-head">
+          <div class="intel-icon">🧲</div>
+          <div>
+            <div class="intel-card-title">Adaptive Collection System</div>
+            <div class="intel-card-sub">C. Mechanical Upgrade</div>
+          </div>
+        </div>
+        <ul class="intel-list">
+          <li>Upgraded belt-net conveyor with wider span for higher throughput collection</li>
+          <li>Adjustable collection angle based on debris size and water current</li>
+          <li>On-board debris classification to sort waste before storage</li>
+          <li>Larger onboard storage with compression to extend operational time</li>
+        </ul>
+      </div>
+      <div class="intel-card reveal">
+        <div class="intel-card-head">
+          <div class="intel-icon">🔥</div>
+          <div>
+            <div class="intel-card-title">Edge AI Module</div>
+            <div class="intel-card-sub">D. On-board Processing</div>
+          </div>
+        </div>
+        <ul class="intel-list">
+          <li>Raspberry Pi 5 upgrade or Coral TPU / Intel NCS2 for blazing-fast local inference</li>
+          <li>Run full YOLO object detection locally — no external dependency needed</li>
+          <li>Only send alerts and images to cloud when genuinely needed, saving bandwidth</li>
+          <li>True autonomy: the bot decides, acts, and learns — all on the edge</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SWAMN INTELLIGENCE — SWARM (NEW BIG SECTION) -->
+<section id="swamn-intelligence">
+  <div class="swarm-container">
+    <div class="reveal" style="text-align:center;">
+      <div class="section-tag" style="justify-content:center;">The Big Upgrade</div>
+      <h2 class="section-title" style="text-align:center; margin:0 auto 1rem;">Swamn <span class="accent">Intelligence</span></h2>
+      <p class="section-body" style="text-align:center; margin:0 auto;">Multiple bots. One mission. A coordinated fleet of Swamn units that communicate, divide area, and clean at a scale no single robot can match.</p>
+    </div>
+
+    <!-- Animated swarm visual -->
+    <div class="swarm-visual reveal">
+      <svg width="340" height="240" viewBox="0 0 340 240" fill="none" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+        <!-- Connection lines -->
+        <line x1="170" y1="36" x2="50" y2="200" stroke="rgba(56,217,192,.25)" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <line x1="170" y1="36" x2="290" y2="200" stroke="rgba(56,217,192,.25)" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <line x1="50" y1="200" x2="290" y2="200" stroke="rgba(56,217,192,.25)" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <line x1="170" y1="36" x2="170" y2="130" stroke="rgba(126,207,238,.25)" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <line x1="50" y1="200" x2="170" y2="130" stroke="rgba(126,207,238,.2)" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <line x1="290" y1="200" x2="170" y2="130" stroke="rgba(126,207,238,.2)" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <!-- Bot 1 - top -->
+        <circle cx="170" cy="36" r="28" fill="rgba(6,29,48,.9)" stroke="rgba(56,217,192,.6)" stroke-width="1.5"/>
+        <text x="170" y="41" text-anchor="middle" font-size="20">🤖</text>
+        <!-- Bot 2 - bottom left -->
+        <circle cx="50" cy="200" r="28" fill="rgba(6,29,48,.9)" stroke="rgba(56,217,192,.4)" stroke-width="1.5"/>
+        <text x="50" y="205" text-anchor="middle" font-size="20">🤖</text>
+        <!-- Bot 3 - bottom right -->
+        <circle cx="290" cy="200" r="28" fill="rgba(6,29,48,.9)" stroke="rgba(56,217,192,.4)" stroke-width="1.5"/>
+        <text x="290" y="205" text-anchor="middle" font-size="20">🤖</text>
+        <!-- Central hub -->
+        <circle cx="170" cy="130" r="22" fill="rgba(56,217,192,.15)" stroke="rgba(56,217,192,.5)" stroke-width="1.5"/>
+        <text x="170" y="137" text-anchor="middle" font-size="16">📡</text>
+        <!-- Labels -->
+        <text x="170" y="10" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="rgba(56,217,192,.7)" letter-spacing="2">BOT-01 LEAD</text>
+        <text x="10" y="220" font-family="DM Mono, monospace" font-size="9" fill="rgba(127,186,204,.5)" letter-spacing="2">BOT-02</text>
+        <text x="270" y="220" font-family="DM Mono, monospace" font-size="9" fill="rgba(127,186,204,.5)" letter-spacing="2">BOT-03</text>
+        <text x="178" y="125" font-family="DM Mono, monospace" font-size="8" fill="rgba(56,217,192,.5)">HUB</text>
+      </svg>
+    </div>
+
+    <div class="swarm-grid">
+      <div class="swarm-card reveal">
+        <span class="swarm-num">01</span>
+        <div class="swarm-title">Mesh Communication</div>
+        <div class="swarm-desc">Each Swamn bot broadcasts its GPS position, debris density data, and battery level to all others via a Wi-Fi mesh network — every bot knows what every other bot is doing.</div>
+      </div>
+      <div class="swarm-card reveal">
+        <span class="swarm-num">02</span>
+        <div class="swarm-title">Automatic Area Division</div>
+        <div class="swarm-desc">The fleet autonomously partitions the cleanup zone into sectors. As bots finish their sector, they redistribute across uncleaned areas — maximising coverage with zero overlap.</div>
+      </div>
+      <div class="swarm-card reveal">
+        <span class="swarm-num">03</span>
+        <div class="swarm-title">Collective Intelligence</div>
+        <div class="swarm-desc">Bots share detection data in real time. A debris sighting by one bot immediately alerts the nearest bot to respond — creating a living, adaptive cleanup network.</div>
+      </div>
+      <div class="swarm-card reveal">
+        <span class="swarm-num">04</span>
+        <div class="swarm-title">Lead Bot Coordination</div>
+        <div class="swarm-desc">A designated lead bot runs the scheduling algorithm, assigning tasks based on each unit's remaining capacity and proximity — like a fleet manager on the water.</div>
+      </div>
+      <div class="swarm-card reveal">
+        <span class="swarm-num">05</span>
+        <div class="swarm-title">Fault Tolerance</div>
+        <div class="swarm-desc">If a bot returns to dock or goes offline, remaining bots automatically rebalance the workload — the mission continues even when individual units are unavailable.</div>
+      </div>
+      <div class="swarm-card reveal">
+        <span class="swarm-num">06</span>
+        <div class="swarm-title">Scalable Fleet</div>
+        <div class="swarm-desc">Start with 2 bots, scale to 200. The swarm protocol requires no changes — each additional bot improves collective coverage linearly, making fleet expansion effortless.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EDGE AI SECTION (NEW) -->
+<section id="edge-ai">
+  <div class="edge-container">
+    <div class="reveal">
+      <div class="section-tag">On-board Processing</div>
+      <h2 class="section-title">True <span class="accent">autonomy</span> at the edge</h2>
+      <p class="section-body">The next Swamn ditches external dependency entirely. All intelligence runs on-board — real-time, resilient, and ready for the real world.</p>
+    </div>
+    <div class="edge-grid">
+      <div class="edge-modules">
+        <div class="edge-module reveal">
+          <div class="edge-module-icon">🍓</div>
+          <div class="edge-module-info">
+            <div class="edge-module-title">Raspberry Pi 5</div>
+            <div class="edge-module-desc">Quad-core ARM Cortex-A76 at 2.4GHz — powerful enough to run optimized YOLO models locally at real-time speeds.</div>
+          </div>
+        </div>
+        <div class="edge-module reveal">
+          <div class="edge-module-icon">🪸</div>
+          <div class="edge-module-info">
+            <div class="edge-module-title">Google Coral TPU</div>
+            <div class="edge-module-desc">Dedicated ML accelerator co-processor capable of 4 TOPS — runs YOLO inference at 30+ FPS with minimal power draw.</div>
+          </div>
+        </div>
+        <div class="edge-module reveal">
+          <div class="edge-module-icon">🧠</div>
+          <div class="edge-module-info">
+            <div class="edge-module-title">Intel Neural Compute Stick 2</div>
+            <div class="edge-module-desc">USB-attached neural accelerator with 4GB LPDDR4. Supports INT8 inference with OpenVINO-optimized YOLO models at scale.</div>
+          </div>
+        </div>
+        <div class="edge-module reveal">
+          <div class="edge-module-icon">☁️</div>
+          <div class="edge-module-info">
+            <div class="edge-module-title">Cloud Only When Needed</div>
+            <div class="edge-module-desc">Edge AI decides — only unusual detections, alerts, and daily summaries are sent to cloud. 95% of work stays on the bot.</div>
+          </div>
+        </div>
+      </div>
+      <div class="edge-highlight reveal">
+        <h3>Why Edge AI Changes Everything</h3>
+        <p>Current prototypes depend on Wi-Fi and external servers — fine for testing, but fragile in the real world. Rivers, coastal areas, and remote lakes have no reliable connectivity.</p>
+        <p>With edge AI, Swamn makes detection, navigation, and collection decisions entirely on-board. It can clean for hours in isolated locations without any connection whatsoever.</p>
+        <div class="edge-tags">
+          <span class="edge-tag">YOLO Local</span>
+          <span class="edge-tag">No Wi-Fi Needed</span>
+          <span class="edge-tag">INT8 Inference</span>
+          <span class="edge-tag">OpenVINO</span>
+          <span class="edge-tag">4 TOPS</span>
+          <span class="edge-tag">Real-time</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="results-grid">
+    <div class="reveal">
+      <div class="section-tag">Performance</div>
+      <h2 class="section-title">Prototype <span class="accent">results</span></h2>
+      <div class="accuracy-display">
+        <div class="big-number">91.7<span style="font-size:.4em">%</span></div>
+        <div class="big-number-label">Overall Classification Accuracy</div>
+        <div style="margin-top:2rem; display:flex; flex-direction:column; gap:.75rem; width:100%;">
+          <div style="font-family:'DM Mono',monospace; font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; margin-bottom:.3rem;">False Positive Rate</div>
+          <div class="accuracy-bar">
+            <div class="bar-track"><div class="bar-fill" style="width:5%"></div></div>
+            <span class="bar-pct">5.0%</span>
+          </div>
+          <div style="font-family:'DM Mono',monospace; font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; margin:.4rem 0;">False Negative Rate</div>
+          <div class="accuracy-bar">
+            <div class="bar-track"><div class="bar-fill" style="width:9%"></div></div>
+            <span class="bar-pct">9.0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="result-cards reveal">
+        <div class="result-card">
+          <div class="result-metric">11.4s</div>
+          <div class="result-metric-label">Mean Collection Time</div>
+          <div class="result-metric-sub">Range: 8.2 – 15.7s</div>
+        </div>
+        <div class="result-card">
+          <div class="result-metric">3.8m</div>
+          <div class="result-metric-label">Full Area Coverage</div>
+          <div class="result-metric-sub">360° scan of 1.5×1.0m tank</div>
+        </div>
+        <div class="result-card">
+          <div class="result-metric">92%</div>
+          <div class="result-metric-label">Docking Success</div>
+          <div class="result-metric-sub">23/25 first-attempt trials</div>
+        </div>
+        <div class="result-card">
+          <div class="result-metric">5.5h</div>
+          <div class="result-metric-label">Continuous Operation</div>
+          <div class="result-metric-sub">Solar-assisted battery life</div>
+        </div>
+      </div>
+      <table class="detection-table reveal">
+        <thead>
+          <tr>
+            <th>Debris Category</th>
+            <th>Trials</th>
+            <th style="min-width:160px;">Accuracy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PET Bottles</td><td>20</td>
+            <td><div class="accuracy-bar"><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-pct">100%</span></div></td>
+          </tr>
+          <tr>
+            <td>Polystyrene Foam</td><td>20</td>
+            <td><div class="accuracy-bar"><div class="bar-track"><div class="bar-fill" style="width:95%"></div></div><span class="bar-pct">95%</span></div></td>
+          </tr>
+          <tr>
+            <td>Bottle Caps</td><td>20</td>
+            <td><div class="accuracy-bar"><div class="bar-track"><div class="bar-fill" style="width:95%"></div></div><span class="bar-pct">95%</span></div></td>
+          </tr>
+          <tr>
+            <td>Plastic Bags</td><td>20</td>
+            <td><div class="accuracy-bar"><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><span class="bar-pct">85%</span></div></td>
+          </tr>
+          <tr>
+            <td>Drinking Straws</td><td>20</td>
+            <td><div class="accuracy-bar"><div class="bar-track"><div class="bar-fill" style="width:80%"></div></div><span class="bar-pct">80%</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- HARDWARE -->
+<section id="hardware">
+  <div class="hardware-container">
+    <div class="reveal">
+      <div class="section-tag">Build</div>
+      <h2 class="section-title">Engineering the <span class="accent">machine</span></h2>
+      <p class="section-body">Every component chosen for cost-effectiveness, reliability, and marine-grade durability. Built for ₹17,500 — a fraction of commercial alternatives.</p>
+    </div>
+    <div class="hardware-grid">
+      <div class="hw-card reveal">
+        <div class="hw-category">🖥️ Processing & Comms</div>
+        <div class="hw-item"><span class="hw-name">Raspberry Pi 5</span><span class="hw-spec">4GB · quad-core 2.4GHz</span></div>
+        <div class="hw-item"><span class="hw-name">ESP32 WROOM-32</span><span class="hw-spec">240MHz · Wi-Fi · ×2</span></div>
+        <div class="hw-item"><span class="hw-name">ESP8266 NodeMCU</span><span class="hw-spec">GPS & telemetry MCU</span></div>
+      </div>
+      <div class="hw-card reveal">
+        <div class="hw-category">📷 Sensing</div>
+        <div class="hw-item"><span class="hw-name">Pi Camera Module v2</span><span class="hw-spec">8MP · 1080p@30fps</span></div>
+        <div class="hw-item"><span class="hw-name">GY-GPS6MV2</span><span class="hw-spec">u-blox NEO-6M · UART</span></div>
+        <div class="hw-item"><span class="hw-name">MPU6050 Gyroscope</span><span class="hw-spec">6-DOF IMU · I2C</span></div>
+      </div>
+      <div class="hw-card reveal">
+        <div class="hw-category">⚙️ Actuation & Drive</div>
+        <div class="hw-item"><span class="hw-name">DC Motors ×2</span><span class="hw-spec">12V · 150RPM · waterproof</span></div>
+        <div class="hw-item"><span class="hw-name">Dual BTS7960</span><span class="hw-spec">43A peak H-bridge</span></div>
+        <div class="hw-item"><span class="hw-name">Belt-Net System</span><span class="hw-spec">Custom rubber conveyor</span></div>
+      </div>
+      <div class="hw-card reveal">
+        <div class="hw-category">🔋 Power System</div>
+        <div class="hw-item"><span class="hw-name">SLA Battery</span><span class="hw-spec">12V 7Ah sealed lead-acid</span></div>
+        <div class="hw-item"><span class="hw-name">Solar Panel</span><span class="hw-spec">10W monocrystalline</span></div>
+        <div class="hw-item"><span class="hw-name">PWM Charge Controller</span><span class="hw-spec">12V / 10A</span></div>
+      </div>
+      <div class="hw-card reveal">
+        <div class="hw-category">🚢 Structure & Docking</div>
+        <div class="hw-item"><span class="hw-name">Chassis</span><span class="hw-spec">2mm mild steel · epoxy paint</span></div>
+        <div class="hw-item"><span class="hw-name">Docking Contacts</span><span class="hw-spec">Magnetic pogo-pin · gold-plated</span></div>
+        <div class="hw-item"><span class="hw-name">Debris Bins</span><span class="hw-spec">2L onboard + 20L dock</span></div>
+      </div>
+      <div class="hw-card reveal" style="display:flex; flex-direction:column; justify-content:center; align-items:center; background:linear-gradient(135deg, rgba(56,217,192,.06), transparent); border-color:rgba(56,217,192,.2);">
+        <div style="font-family:'DM Mono',monospace; font-size:.62rem; color:var(--muted); letter-spacing:.14em; text-transform:uppercase; margin-bottom:.8rem;">120 Test Trials</div>
+        <div style="font-family:'Syne',sans-serif; font-size:3.2rem; font-weight:800; color:var(--teal-bright); line-height:1; text-shadow:0 0 40px rgba(56,217,192,.4);">$210</div>
+        <div style="font-family:'DM Mono',monospace; font-size:.62rem; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-top:.7rem; text-align:center;">Total prototype cost<br>(vs $5K–$50K commercial)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- IMPACT -->
+<section id="impact">
+  <div class="impact-container">
+    <div class="reveal">
+      <div class="section-tag">Scale</div>
+      <h2 class="section-title">Real-world <span class="accent">impact</span> at scale</h2>
+      <p class="section-body">A small fleet of low-cost Swamn units can recover hundreds of tonnes of surface macroplastics annually when focused on pollution hotspots.</p>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-calc reveal">
+        <div class="calc-title">Fleet Impact Calculator — 100 Units</div>
+        <div class="calc-row"><span class="calc-label">Units deployed</span><span class="calc-value">100</span></div>
+        <div class="calc-row"><span class="calc-label">Collection per unit/day</span><span class="calc-value">5 kg</span></div>
+        <div class="calc-row"><span class="calc-label">100 × 5</span><span class="calc-value">500 kg/day</span></div>
+        <div class="calc-row"><span class="calc-label">500 × 365</span><span class="calc-value">182,500 kg/yr</span></div>
+        <div class="calc-total">
+          <span class="calc-label">Annual Impact</span>
+          <span class="calc-value">182.5 T/yr</span>
+        </div>
+      </div>
+      <div class="sdg-badges reveal">
+        <div style="font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; color:var(--white); margin-bottom:.4rem;">Aligned with Global Goals</div>
+        <div class="sdg-badge">
+          <div class="sdg-num">14</div>
+          <div class="sdg-info">
+            <strong>Life Below Water</strong>
+            <span>Reducing plastic pollution in marine ecosystems to protect biodiversity</span>
+          </div>
+        </div>
+        <div class="sdg-badge">
+          <div class="sdg-num">12</div>
+          <div class="sdg-info">
+            <strong>Responsible Consumption</strong>
+            <span>Enabling circular waste recovery and responsible plastic management</span>
+          </div>
+        </div>
+        <div class="sdg-badge">
+          <div class="sdg-num">7</div>
+          <div class="sdg-info">
+            <strong>Clean Energy</strong>
+            <span>Powered entirely by solar energy for zero-emission, off-grid operation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section id="team">
+  <div class="team-container">
+    <div class="reveal">
+      <div class="section-tag" style="justify-content:center;">Innovators</div>
+      <h2 class="section-title" style="text-align:center; margin:0 auto;">The minds behind <span class="accent">Swamn</span></h2>
+    </div>
+    <div class="team-grid">
+      <div class="team-card reveal">
+        <div class="team-avatar">RS</div>
+        <div class="team-name">Rishi Singh</div>
+        <span class="team-role">Lead Developer & Creator</span>
+        <p class="team-bio">16-year-old innovator passionate about using technology to solve real-world environmental challenges. Creator and lead developer of Swamn, integrating ML models with Raspberry Pi and ESP32 hardware for real-time garbage detection.</p>
+        <div class="team-achievements">
+          <div class="achievement">Selected among 1.5 lakh students at IIT Guwahati</div>
+          <div class="achievement">Recognised at district level — INSPIRE Awards</div>
+          <div class="achievement">Registered for IIT Delhi competition</div>
+        </div>
+      </div>
+      <div class="team-card reveal">
+        <div class="team-avatar">VR</div>
+        <div class="team-name">Vaibhav Raj</div>
+        <span class="team-role">Co-developer & ATL VP</span>
+        <p class="team-bio">16-year-old Class XI student with a strong inclination toward academics, leadership, and technology. Vice-President of the ATL (Atal Tinkering Lab) Club, actively organising events, mentoring peers, and fostering creativity.</p>
+        <div class="team-achievements">
+          <div class="achievement">Vice-President, ATL Club — Sunbeam School</div>
+          <div class="achievement">Olympiad achiever in multiple subjects</div>
+          <div class="achievement">Strong analytical & problem-solving skills</div>
+        </div>
+      </div>
+    </div>
+    <div class="school-banner reveal">
+      <div>
+        <div class="school-name">Sunbeam School Mughalsarai</div>
+        <div class="school-sub">Uttar Pradesh, India · Class XI · 2026</div>
+      </div>
+      <div class="school-badges">
+        <div class="school-badge">INSPIRE Award</div>
+        <div class="school-badge">IIT Guwahati</div>
+        <div class="school-badge">IIT Delhi</div>
+        <div class="school-badge">ATL Club</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="future">
+  <div class="future-container">
+    <div class="reveal">
+      <div class="section-tag">Roadmap</div>
+      <h2 class="section-title">What comes <span class="accent">next</span></h2>
+      <p class="section-body">The current prototype is just the beginning. Future iterations of Swamn will expand capability, autonomy, and scale.</p>
+    </div>
+    <div class="future-items">
+      <div class="future-item reveal">
+        <span class="future-num">01</span>
+        <div class="future-title">Submerged Debris Detection</div>
+        <div class="future-desc">Expanding the sensing stack with sonar and underwater cameras to detect and recover plastics below the surface, targeting microplastic accumulation zones.</div>
+      </div>
+      <div class="future-item reveal">
+        <span class="future-num">02</span>
+        <div class="future-title">Turbulent Open-Water Testing</div>
+        <div class="future-desc">Moving beyond controlled tank conditions to real coastal environments — harbors, rivers, and estuaries — with wave-compensation and ruggedized hull.</div>
+      </div>
+      <div class="future-item reveal">
+        <span class="future-num">03</span>
+        <div class="future-title">Full Swarm Deployment</div>
+        <div class="future-desc">Deploying coordinated fleets of Swamn units with the swarm intelligence protocol, sharing detection data and optimizing coverage across large water bodies in real time.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Swamn</div>
+  <div class="footer-tagline">AI-Powered Marine Plastic Detection & Collection</div>
+  <div class="sdg-line">
+    <div class="sdg-chip">SDG 14 — Life Below Water</div>
+    <div class="sdg-chip">SDG 12 — Responsible Consumption</div>
+    <div class="sdg-chip">SDG 7 — Clean Energy</div>
+  </div>
+  <div class="footer-divider"></div>
+  <div class="footer-meta">
+    Rishi Singh &amp; Vaibhav Raj · Sunbeam School Mughalsarai · Uttar Pradesh, India
+  </div>
+</footer>
+
+<script>
+  // Custom cursor
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+  });
+  (function animateRing() {
+    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+    requestAnimationFrame(animateRing);
+  })();
+  document.querySelectorAll('a, button').forEach(el => {
+    el.addEventListener('mouseenter', () => { cursor.style.width='18px'; cursor.style.height='18px'; ring.style.width='52px'; ring.style.height='52px'; });
+    el.addEventListener('mouseleave', () => { cursor.style.width='10px'; cursor.style.height='10px'; ring.style.width='36px'; ring.style.height='36px'; });
+  });
+
+  // Nav scroll
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => navbar.classList.toggle('scrolled', window.scrollY > 60));
+
+  // Mobile nav
+  function toggleNav() {
+    document.body.classList.toggle('mobile-nav-open');
+  }
+  document.querySelectorAll('#navLinks a').forEach(a => a.addEventListener('click', () => document.body.classList.remove('mobile-nav-open')));
+
+  // Bokeh orbs
+  const bokeh = document.getElementById('bokeh');
+  const bokehColors = ['rgba(56,217,192,.14)', 'rgba(126,207,238,.1)', 'rgba(56,217,192,.09)', 'rgba(200,240,250,.07)'];
+  for (let i = 0; i < 8; i++) {
+    const el = document.createElement('div');
+    el.className = 'bokeh-circle';
+    const size = 200 + Math.random() * 300;
+    el.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%; top:${Math.random()*100}%;
+      transform:translate(-50%,-50%);
+      background:radial-gradient(circle, ${bokehColors[i%bokehColors.length]} 0%, transparent 70%);
+      --d:${12+Math.random()*10}s; --dl:${Math.random()*8}s;
+    `;
+    bokeh.appendChild(el);
+  }
+
+  // Particles
+  const particlesC = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.setProperty('--dur', (7 + Math.random()*12)+'s');
+    p.style.setProperty('--delay', (Math.random()*12)+'s');
+    p.style.setProperty('--x', (Math.random()*100)+'%');
+    p.style.width = p.style.height = (1+Math.random()*2.5)+'px';
+    particlesC.appendChild(p);
+  }
+
+  // Scroll reveal
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Bar animations
+  const barObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const el = e.target, w = el.style.width;
+        el.style.width = '0';
+        setTimeout(() => el.style.width = w, 200);
+        barObserver.unobserve(el);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.bar-fill').forEach(b => barObserver.observe(b));
+</script>
+</body>
+</html>
